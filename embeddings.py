@@ -3,15 +3,24 @@ from retry import retry
 from tiktoken import get_encoding
 from urllib.parse import urlparse
 from fitz import open as open_pdf
+from os import getenv
 import requests
+import openai
 
 # Set to a global variable to avoid calling the function every time.
 enc = get_encoding("cl100k_base")
+
+# We define OpenAI's API key and endpoint.
+openai.api_key = getenv("AZURE_AI_API_KEY")
+openai.api_base = getenv("AZURE_AI_ENDPOINT")
+openai.api_type = "azure"
+openai.api_version = getenv("AZURE_AI_VERSION")
 
 # Constants
 # The maximum number of tokens we will use to compute embeddings.
 MAX_TOKENS = 512
 DIMENSIONS = 1536  # The number of dimensions of the embeddings.
+MODEL_ID = "text-embedding-ada-002"  # The ID of the model to use.
 
 
 def compute_embeddings(url: str) -> list[float]:
@@ -32,11 +41,20 @@ def compute_embeddings(url: str) -> list[float]:
     text = get_text(url)
     text = get_text_truncated_tokenized(text, MAX_TOKENS)
 
+    if (len(text) == 0):
+        return []
+
+    # We compute the embeddings.
+    response = openai.Embedding.create(input=text, model=MODEL_ID, deployment_id=getenv("AZURE_DEPLOYMENT_ID"))[
+        'data'][0]['embedding']
+
     print(text[:30])
+    print(response[:30])
 
-    return [0.0 for _ in range(DIMENSIONS)]
+    return response
 
 
+@retry(tries=5, delay=2)
 def get_text(url: str) -> str:
     """
     Sort the type of URL and call the appropriate function to extract the text.
