@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "scraper"
+version = "0.1.0"
+description = ""
+authors = ["Julien <48369040+julien040@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+redis = "^4.5.5"
+rq = "^1.15.0"
+requests = "^2.31.0"
+retry = "^0.9.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
