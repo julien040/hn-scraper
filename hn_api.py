@@ -2,10 +2,16 @@ import requests
 from time import sleep
 from persistence import rPost
 from retry import retry
-from os import environ
+from os import getenv
 
+proxies = {
+    'http': getenv("PROXY_URL_USA"),
+    'https': getenv("PROXY_URL_USA"),
+}
 
 # We define a decorator to retry the function in case of failure.
+
+
 @retry(tries=10, delay=1)
 def fetch_post_hn(id: str) -> dict:
     """
@@ -16,7 +22,7 @@ def fetch_post_hn(id: str) -> dict:
     """
     story_url = 'https://hacker-news.firebaseio.com/v0/item/{}.json'.format(
         id)
-    story = requests.get(story_url).json()
+    story = requests.get(story_url, proxies=proxies).json()
     if type(story) is not dict:
         raise Exception("Story {} is not a dictionary.".format(id))
 
@@ -50,7 +56,7 @@ def add_story_redis(id: str):
         return
 
     # We check if the story has all the required fields.
-    required_fields = ["by", "title", "score", "time"]
+    required_fields = ["by", "title", "score", "time", "descendants"]
     for field in required_fields:
         if field not in story:
             print("Story {} is missing field {}.".format(id, field))
@@ -67,6 +73,7 @@ def add_story_redis(id: str):
         "url": story["url"] if "url" in story else "",
         "score": story["score"],
         "time": story["time"],
+        "comments": story["descendants"],
 
     }
 
@@ -76,10 +83,14 @@ def add_story_redis(id: str):
     rPost.hset(redisPostID, mapping=mapping)
 
 
-"""
-A couple of example id:
-Story: 36120972
-Comment: 36127156
-Ask HN: 36120745
-"""
-add_story_redis("36120745")
+def get_max_id_HN() -> int:
+    """
+    Get the max ID from Hacker News.
+
+    Returns:
+        int: The max ID.
+    """
+    max_id = requests.get(
+        'https://hacker-news.firebaseio.com/v0/maxitem.json', proxies=proxies).json()
+    # We convert the ID to an integer in case of the API returning a string.
+    return int(max_id)
