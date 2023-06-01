@@ -32,6 +32,11 @@ def pollNewStory():
             # We add the ID to the queue.
             redis_queue.enqueue(add_story_redis, str(id))
 
+            # We do a partial commit every 100 IDs.
+            if id % 100 == 0:
+                redis_connection_queue.set("max:ID:hn", id)
+                print("Partial commit. ID: {}".format(id))
+
         # We update the max ID in Redis.
         redis_connection_queue.set("max:ID:hn", maxID)
 
