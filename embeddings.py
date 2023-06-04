@@ -23,6 +23,13 @@ DIMENSIONS = 1536  # The number of dimensions of the embeddings.
 MODEL_ID = "text-embedding-ada-002"  # The ID of the model to use.
 
 
+def add_embeddings_redis(id: str):
+    """
+    Upsert the embeddings of a post to Redis.
+    """
+    pass
+
+
 def compute_embeddings(url: str) -> list[float]:
     """
     Compute the embeddings of a URL from the text of the article.
@@ -172,8 +179,8 @@ def get_text_truncated_tokenized(text: str, max_tokens: int) -> str:
     return text
 
 
-compute_embeddings("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+""" compute_embeddings("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
 compute_embeddings("https://arxiv.org/abs/1702.01715")
 compute_embeddings("https://arxiv.org/pdf/2305.18179.pdf")
 compute_embeddings("https://bitcoin.org/bitcoin.pdf")
-compute_embeddings("https://python-rq.org/docs/workers/")
+compute_embeddings("https://python-rq.org/docs/workers/") """
