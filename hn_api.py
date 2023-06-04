@@ -27,7 +27,7 @@ def fetch_post_hn(id: str) -> dict:
         raise Exception("Story {} is not a dictionary.".format(id))
 
     # Check if the story has all the required fields.
-    required_fields = ["by", "type"]
+    required_fields = ["type"]
     for field in required_fields:
         if field not in story:
             raise Exception("Story {} is missing field {}.".format(id, field))

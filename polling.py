@@ -30,7 +30,8 @@ def pollNewStory():
         # We add all the IDs in the interval.
         for id in range(maxIDRedis + 1, maxID + 1):
             # We add the ID to the queue.
-            redis_queue.enqueue(add_story_redis, str(id))
+            redis_queue.enqueue(add_story_redis, str(
+                id), job_timeout=10, result_ttl=10)
 
             # We do a partial commit every 100 IDs.
             if id % 100 == 0:
