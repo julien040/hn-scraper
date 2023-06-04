@@ -1,9 +1,11 @@
 from persistence import rPost
 from retry import retry
 from tiktoken import get_encoding
+from youtube_transcript_api import YouTubeTranscriptApi
 from urllib.parse import urlparse
 from fitz import open as open_pdf
 from os import getenv
+from json import dumps
 import requests
 import openai
 
@@ -16,6 +18,12 @@ openai.api_base = getenv("AZURE_AI_ENDPOINT")
 openai.api_type = "azure"
 openai.api_version = getenv("AZURE_AI_VERSION")
 
+# We define the proxies to use.
+proxies = {
+    'http': getenv("PROXY_URL_USA"),
+    'https': getenv("PROXY_URL_USA"),
+}
+
 # Constants
 # The maximum number of tokens we will use to compute embeddings.
 MAX_TOKENS = 512
@@ -27,7 +35,24 @@ def add_embeddings_redis(id: str):
     """
     Upsert the embeddings of a post to Redis.
     """
-    pass
+
+    id = "hn:{}".format(id)
+    res = rPost.hget(id, "url")
+    if res is None:
+        raise Exception("URL is empty.")
+        return
+    res = res.decode("utf-8")
+    if res == "":
+        raise Exception("URL is empty.")
+
+    embeddings = compute_embeddings(res)
+
+    if len(embeddings) == 0:
+        raise Exception("Embeddings are empty.")
+
+    stringifiedJSON = dumps(embeddings)
+
+    rPost.hset(id, "embeddings", stringifiedJSON)
 
 
 def compute_embeddings(url: str) -> list[float]:
@@ -55,13 +80,10 @@ def compute_embeddings(url: str) -> list[float]:
     response = openai.Embedding.create(input=text, model=MODEL_ID, deployment_id=getenv("AZURE_DEPLOYMENT_ID"))[
         'data'][0]['embedding']
 
-    print(text[:30])
-    print(response[:30])
-
     return response
 
 
-@retry(tries=5, delay=2)
+@retry(tries=3, delay=2)
 def get_text(url: str) -> str:
     """
     Sort the type of URL and call the appropriate function to extract the text.
@@ -111,13 +133,87 @@ def get_text(url: str) -> str:
 
 
 def get_text_Article(url: str) -> str:
-    print("Article has not been implemented yet.")
-    return ""
+    """
+    Fetch the text of an article using Diffbot's Article API.
+
+    Args:
+        url (str): The URL of the article.
+
+    Returns:
+        str: The text of the article.
+    """
+
+    params = {
+        "url": url,
+        "token": getenv("DIFFBOT_API_KEY"),
+    }
+
+    headers = {
+        "Accept": "application/json",
+    }
+
+    response = requests.get(
+        "https://api.diffbot.com/v3/article", params=params, headers=headers, proxies=proxies)
+
+    # We check if the request was successful.
+    if (response.status_code != 200):
+        raise Exception("Error while fetching the text of the article: {}".format(
+            response.json()["error"]))
+
+    data = response.json()["objects"][0]
+
+    # We check if the text is returned by the API.
+    if ("text" not in data):
+        raise Exception("Error while fetching the text of the article: {}".format(
+            data["error"]))
+
+    return data["text"]
 
 
 def get_text_YouTube(url: str) -> str:
-    print("YouTube has not been implemented yet.")
-    return ""
+
+    # ---------------------------- Parse the video ID ---------------------------- #
+
+    video_id = ""
+    parsed = urlparse(url)
+    path = parsed.path
+    if (path.startswith("/watch")):
+        # We extract the ID of the video.
+        # The ID is the value of the v parameter.
+        # For example, if the URL is https://www.youtube.com/watch?v=9bZkp7q19f0, the ID is 9bZkp7q19f0.
+        video_id = parsed.query.split("=")[1]
+    elif (path.startswith("/embed/")):
+        # We extract the ID of the video.
+        # The ID is the last part of the path.
+        # For example, if the URL is https://www.youtube.com/embed/9bZkp7q19f0, the ID is 9bZkp7q19f0.
+        video_id = path.split("/")[-1]
+    elif (path.startswith("/v/")):
+        # We extract the ID of the video.
+        # The ID is the last part of the path.
+        # For example, if the URL is https://www.youtube.com/v/9bZkp7q19f0, the ID is 9bZkp7q19f0.
+        video_id = path.split("/")[-1]
+    elif (path.startswith("/playlist?list=")):
+        # We raise an exception because we can't compute embeddings from a playlist.
+        return get_text_Article(url)
+    elif parsed.hostname == "youtu.be":
+        # We extract the ID of the video.
+        # The ID is the value of the path.
+        # For example, if the URL is https://youtu.be/9bZkp7q19f0, the ID is 9bZkp7q19f0.
+        video_id = path[1:]
+    else:
+        # We raise an exception because we can't compute embeddings from a channel.
+        raise Exception("We can't extract text from this url: {}".format(url))
+
+    # ---------------------------- Get the captions ---------------------------- #
+    captions = YouTubeTranscriptApi.get_transcript(
+        video_id, proxies=proxies, languages=["en"])
+
+    # We extract the text from the captions.
+    text = ""
+    for caption in captions:
+        text += caption["text"] + " "
+
+    return text
 
 
 def get_text_pdf(url: str) -> str:
@@ -179,8 +275,11 @@ def get_text_truncated_tokenized(text: str, max_tokens: int) -> str:
     return text
 
 
-""" compute_embeddings("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-compute_embeddings("https://arxiv.org/abs/1702.01715")
-compute_embeddings("https://arxiv.org/pdf/2305.18179.pdf")
-compute_embeddings("https://bitcoin.org/bitcoin.pdf")
-compute_embeddings("https://python-rq.org/docs/workers/") """
+if __name__ == "__main__":
+    # compute_embeddings("https://www.youtube.com/watch?v=IPBSB1HLNLo")
+    # compute_embeddings("https://arxiv.org/abs/1702.01715")
+    # compute_embeddings("https://arxiv.org/pdf/2305.18179.pdf")
+    # compute_embeddings("https://bitcoin.org/bitcoin.pdf")
+    # compute_embeddings("https://python-rq.org/docs/workers/")
+
+    add_embeddings_redis("158696")
