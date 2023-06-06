@@ -1,5 +1,6 @@
 from persistence import rPost
 from retry import retry
+from bz2 import compress, decompress
 from tiktoken import get_encoding
 from youtube_transcript_api import YouTubeTranscriptApi
 from urllib.parse import urlparse
@@ -52,7 +53,9 @@ def add_embeddings_redis(id: str):
 
     stringifiedJSON = dumps(embeddings)
 
-    rPost.hset(id, "embeddings", stringifiedJSON)
+    compressedJSON = compress(stringifiedJSON.encode("utf-8"))
+
+    rPost.hset(id, "embeddings", compressedJSON)
 
 
 def compute_embeddings(url: str) -> list[float]:
@@ -74,7 +77,7 @@ def compute_embeddings(url: str) -> list[float]:
     text = get_text_truncated_tokenized(text, MAX_TOKENS)
 
     if (len(text) == 0):
-        return []
+        raise Exception("Text extracted is empty.")
 
     # We compute the embeddings.
     response = openai.Embedding.create(input=text, model=MODEL_ID, deployment_id=getenv("AZURE_DEPLOYMENT_ID"))[
@@ -83,7 +86,6 @@ def compute_embeddings(url: str) -> list[float]:
     return response
 
 
-@retry(tries=3, delay=2)
 def get_text(url: str) -> str:
     """
     Sort the type of URL and call the appropriate function to extract the text.
@@ -107,7 +109,14 @@ def get_text(url: str) -> str:
     # can be wrong (e.g. a PDF served without an extension).
 
     # We send a HEAD request to the URL.
-    response = requests.head(url)
+    response = requests.head(url, allow_redirects=True, proxies=proxies)
+
+    if response.status_code == 404 or response.status_code >= 500:
+        raise Exception(
+            "Status code is not 200: {}".format(response.status_code))
+
+    if "Content-Type" not in response.headers:
+        response.headers["Content-Type"] = "text/html"
 
     # We check if the Content-Type is application/pdf.
     if response.headers["Content-Type"] == "application/pdf":
@@ -157,6 +166,10 @@ def get_text_Article(url: str) -> str:
 
     # We check if the request was successful.
     if (response.status_code != 200):
+        raise Exception("Error while fetching the text of the article. Status code: {}".format(
+            response.status_code))
+
+    if "error" in response.json():
         raise Exception("Error while fetching the text of the article: {}".format(
             response.json()["error"]))
 
@@ -282,4 +295,4 @@ if __name__ == "__main__":
     # compute_embeddings("https://bitcoin.org/bitcoin.pdf")
     # compute_embeddings("https://python-rq.org/docs/workers/")
 
-    add_embeddings_redis("158696")
+    add_embeddings_redis("132117")

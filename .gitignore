@@ -89,5 +89,11 @@ pyrightconfig.json
 pyvenv.cfg
 pip-selfcheck.json
 
+.DS_Store
+
 # Gut specific
 .gut
+
+# Test
+*.db
+test.*

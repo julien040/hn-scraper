@@ -12,4 +12,4 @@ RUN ~/.local/share/pypoetry/venv/bin/poetry config virtualenvs.create false \
 COPY . .
 
 
-ENTRYPOINT rq worker-pool -u ${REDIS_URL_QUEUE} -n ${WORKER_AMOUNT}
+CMD ["python", "polling_embedding.py"]

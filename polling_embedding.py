@@ -5,7 +5,7 @@ from embeddings import add_embeddings_redis
 import time
 
 
-THRESHOLD = 30  # The minimum score of the post to compute embeddings.
+THRESHOLD = 100  # The minimum score of the post to compute embeddings.
 SCAN_COUNT = 10000  # The number of posts to scan in Redis per iteration.
 PATTERN = "hn:*"  # The pattern to use to scan Redis.
 
