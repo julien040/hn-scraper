@@ -95,3 +95,14 @@ pip-selfcheck.json
 ## Docker
 schedulerDockerFile
 workerDockerFile
+
+# Db
+*.csv
+*.db
+*.sqlite3
+*.parquet
+data_export/
+*.duckdb
+
+# Git
+.git

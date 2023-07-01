@@ -97,3 +97,7 @@ pip-selfcheck.json
 # Test
 *.db
 test.*
+data_export/
+data/
+*.csv
+*.parquet

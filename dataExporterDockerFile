@@ -11,5 +11,7 @@ RUN ~/.local/share/pypoetry/venv/bin/poetry config virtualenvs.create false \
 
 COPY . .
 
-
-CMD ["python", "data_exporter.py"]
+# Use -u to force unbuffered output
+# I had an issue where the output was not being printed to the console
+# https://stackoverflow.com/questions/29663459/python-app-does-not-print-anything-when-running-detached-in-docker
+CMD [ "python", "-u", "data_export.py" ]
