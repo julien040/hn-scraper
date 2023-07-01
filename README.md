@@ -2,6 +2,16 @@
 
 Fetch last HN posts and save them in a database.
 
+## Files 
+
+- hn_api.py: Hacker News API wrapper
+- persistence.py: Redis database wrapper
+- polling.py: Check for new posts and add them to the queue
+- polling_embedding.py: A one-time script to push embeddings job to the queue
+- data_export: Generate a CSV, PARQUET and DuckDB file from the database
+- main.py: Run the scheduler
+- embeddings.py: Fetch embeddings from OpenAI API and Diffbot API
+
 ## Technical stack
 
 ### Scheduler
@@ -24,6 +34,8 @@ It contains 2 sets:
 - db1 contains the posts
 
 Posts are prefixed by hn:<id>
+
+
 
 
 
